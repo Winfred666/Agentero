@@ -74,8 +74,10 @@ pnpm test:macos
 | XDG profile | `agentero` | `agentero-test` |
 | 安装位置 | 通常 `/Applications/Agentero.app` | `~/Applications/Agentero Test.app` |
 | Updater endpoint | 正式 Release | 空（不会拉取正式版更新） |
+| 后台任务详情 | 悬停展开、终态短暂保留 | 有任务时固定展开、终态保留到手动清除 |
+| Zotero Connector | 默认关闭 | 新 profile 默认开启（之后可手动关闭） |
 
-脚本在安装前后校验 bundle identifier、`agentero-test://` 声明、PDFium、内置 CLI 和正式版 `Info.plist` 哈希，并对复制后的测试包执行本地 ad-hoc 全包签名及严格校验。启动验收先等待 `app_ready`，再向 `agentero-test` profile 写入 CLI 请求文件，并从测试版日志确认接收。`tmp/agentero-test-vault` 是一次性测试数据，每次运行都会删除并重建；不要在其中保存需要保留的笔记。
+脚本在安装前后校验 bundle identifier、测试前端标记、`agentero-test://` 声明、PDFium、内置 CLI 和正式版 `Info.plist` 哈希，并对复制后的测试包执行本地 ad-hoc 全包签名及严格校验。启动验收先等待 `app_ready`，再向 `agentero-test` profile 写入 CLI 请求文件，并从测试版日志确认接收。`tmp/agentero-test-vault` 是一次性测试数据，每次运行都会删除并重建；不要在其中保存需要保留的笔记。
 
 ## 前端测试
 

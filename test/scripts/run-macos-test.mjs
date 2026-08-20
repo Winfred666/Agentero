@@ -253,6 +253,9 @@ const config = JSON.parse(await readFile(TEST_CONFIG, "utf8"));
 if (
 	config.productName !== TEST_APP_NAME ||
 	config.identifier !== TEST_APP_IDENTIFIER ||
+	!config.build?.beforeBuildCommand?.includes(
+		"VITE_AGENTERO_MACOS_TEST_BUILD=1",
+	) ||
 	config.plugins?.updater?.endpoints?.length !== 0
 ) {
 	throw new Error("tauri.test.conf.json does not preserve test-app isolation");

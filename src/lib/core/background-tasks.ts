@@ -48,6 +48,17 @@ export type BackgroundTask = {
 	updatedAt: number;
 };
 
+export function backgroundTaskPolicyForBuild(isMacosTestBuild: boolean) {
+	return {
+		keepPanelOpen: isMacosTestBuild,
+		autoPruneFinished: !isMacosTestBuild,
+	};
+}
+
+export const BACKGROUND_TASK_POLICY = backgroundTaskPolicyForBuild(
+	import.meta.env.VITE_AGENTERO_MACOS_TEST_BUILD === "1",
+);
+
 type Store = {
 	tasks: BackgroundTask[];
 	expanded: boolean;
@@ -167,11 +178,12 @@ function uid(): string {
 	return `task-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-/** Keep completed/failed for a short while, then drop them. */
+/** Keep completed/failed briefly in production; test builds retain diagnostics. */
 const COMPLETED_TTL_MS = 4000;
 const MAX_HISTORY = 12;
 
 function schedulePrune(id: string) {
+	if (!BACKGROUND_TASK_POLICY.autoPruneFinished) return;
 	window.setTimeout(() => {
 		const snapshot = getBackgroundTasksSnapshot();
 		const tasks = snapshot.tasks.filter((t) => t.id !== id);
@@ -273,8 +285,7 @@ export function failBackgroundTask(id: string, error: string): void {
 		error,
 		detail: error,
 	});
-	// Panel expands on failure only while the pointer is over it / briefly;
-	// see background-tasks-panel (hover leave always returns to the ring).
+	// Production briefly expands on failure; the macOS test build stays open.
 	setBackgroundTasksExpanded(true);
 	schedulePrune(id);
 }

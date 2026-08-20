@@ -53,6 +53,10 @@ fn profile_dir() -> &'static str {
     PROFILE_DIR.get().copied().unwrap_or(PRODUCTION_PROFILE_DIR)
 }
 
+pub fn is_test_profile() -> bool {
+    profile_dir() == TEST_PROFILE_DIR
+}
+
 /// Resolve XDG config home (`$XDG_CONFIG_HOME` or platform default).
 pub fn xdg_config_home() -> PathBuf {
     if let Some(p) = env_dir("XDG_CONFIG_HOME") {

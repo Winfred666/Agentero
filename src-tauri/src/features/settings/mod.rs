@@ -350,7 +350,12 @@ impl AppSettingsStore {
     pub fn load() -> Self {
         let path = settings_path();
         paths::migrate_legacy_file("settings.json", &path);
-        let (settings, _existed) = read_file(&path);
+        let (settings, existed) = read_file(&path);
+        let settings = if existed {
+            settings
+        } else {
+            default_settings_for_profile(paths::is_test_profile())
+        };
         Self {
             inner: Mutex::new(settings),
             path,
@@ -442,6 +447,13 @@ impl AppSettingsStore {
         } else {
             Some(base_url.to_string())
         }
+    }
+}
+
+fn default_settings_for_profile(is_test_profile: bool) -> AppSettings {
+    AppSettings {
+        connector_enabled: cfg!(target_os = "macos") && is_test_profile,
+        ..AppSettings::default()
     }
 }
 
@@ -743,6 +755,15 @@ mod tests {
         assert_eq!(loaded.translator_base_url, DEFAULT_TRANSLATOR_BASE_URL);
         assert_eq!(loaded.auto_update_internal_links, "ask");
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn connector_defaults_on_only_for_macos_test_profile() {
+        assert!(!default_settings_for_profile(false).connector_enabled);
+        assert_eq!(
+            default_settings_for_profile(true).connector_enabled,
+            cfg!(target_os = "macos")
+        );
     }
 
     #[test]

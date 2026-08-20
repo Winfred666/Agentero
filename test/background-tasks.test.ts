@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	backgroundTaskPolicyForBuild,
 	backgroundTasksStore,
 	mapDownloadProgress,
 	startBackgroundTask,
@@ -7,6 +8,17 @@ import {
 } from "@/lib/core/background-tasks";
 
 describe("background task download progress", () => {
+	it("pins and retains diagnostics only for the macOS test build", () => {
+		expect(backgroundTaskPolicyForBuild(true)).toEqual({
+			keepPanelOpen: true,
+			autoPruneFinished: false,
+		});
+		expect(backgroundTaskPolicyForBuild(false)).toEqual({
+			keepPanelOpen: false,
+			autoPruneFinished: true,
+		});
+	});
+
 	it("maps sequential PDF and TeX phases into one overall progress", () => {
 		expect(mapDownloadProgress("pdf", 0)).toBe(0);
 		expect(mapDownloadProgress("pdf", 80)).toBe(40);

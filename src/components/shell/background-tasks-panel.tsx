@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useBackgroundTasks } from "@/hooks/use-background-tasks";
 import {
+	BACKGROUND_TASK_POLICY,
 	type BackgroundTask,
 	type BackgroundTaskKind,
 	cancelBackgroundTask,
@@ -317,12 +318,13 @@ function ProgressRing({
 
 /** Auto-collapse error detail if the pointer never enters the panel. */
 const ERROR_DETAIL_MS = 5000;
+const KEEP_DETAIL_OPEN = BACKGROUND_TASK_POLICY.keepPanelOpen;
 
 export function BackgroundTasksPanel({ className }: { className?: string }) {
 	const { t } = useTranslation("app");
 	const { tasks } = useBackgroundTasks();
-	/** Detail open is hover-driven; store.expanded is only a fail signal. */
-	const [detailOpen, setDetailOpen] = useState(false);
+	/** Production is hover-driven; the macOS test build pins diagnostics open. */
+	const [detailOpen, setDetailOpen] = useState(KEEP_DETAIL_OPEN);
 	const pointerInsideRef = useRef(false);
 	const hoverExpandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
 		null,
@@ -338,6 +340,7 @@ export function BackgroundTasksPanel({ className }: { className?: string }) {
 	}, []);
 
 	const closeDetail = useCallback(() => {
+		if (KEEP_DETAIL_OPEN) return;
 		if (hoverExpandTimerRef.current) {
 			clearTimeout(hoverExpandTimerRef.current);
 			hoverExpandTimerRef.current = null;
@@ -352,6 +355,10 @@ export function BackgroundTasksPanel({ className }: { className?: string }) {
 
 	const scheduleHoverExpand = useCallback(() => {
 		pointerInsideRef.current = true;
+		if (KEEP_DETAIL_OPEN) {
+			openDetail();
+			return;
+		}
 		if (errorCollapseTimerRef.current) {
 			clearTimeout(errorCollapseTimerRef.current);
 			errorCollapseTimerRef.current = null;
@@ -367,12 +374,11 @@ export function BackgroundTasksPanel({ className }: { className?: string }) {
 				setBackgroundTasksExpanded(true);
 			}
 		}, HOVER_EXPAND_MS);
-	}, []);
+	}, [openDetail]);
 
 	const collapseOnLeave = useCallback(() => {
 		pointerInsideRef.current = false;
-		// Always return to the ring when the pointer leaves the panel.
-		closeDetail();
+		if (!KEEP_DETAIL_OPEN) closeDetail();
 	}, [closeDetail]);
 
 	const active = useMemo(() => getActiveBackgroundTasks(tasks), [tasks]);
@@ -410,6 +416,7 @@ export function BackgroundTasksPanel({ className }: { className?: string }) {
 		if (fresh.length === 0) return;
 
 		openDetail();
+		if (KEEP_DETAIL_OPEN) return;
 		if (errorCollapseTimerRef.current) {
 			clearTimeout(errorCollapseTimerRef.current);
 		}
@@ -432,10 +439,14 @@ export function BackgroundTasksPanel({ className }: { className?: string }) {
 		};
 	}, []);
 
-	// No tasks left → force ring state for the next job.
+	// Test builds stay ready to show the next task; production resets to the ring.
 	useEffect(() => {
+		if (KEEP_DETAIL_OPEN) {
+			if (tasks.length > 0) openDetail();
+			return;
+		}
 		if (tasks.length === 0 && detailOpen) closeDetail();
-	}, [tasks.length, detailOpen, closeDetail]);
+	}, [tasks.length, detailOpen, closeDetail, openDetail]);
 
 	if (tasks.length === 0) return null;
 
