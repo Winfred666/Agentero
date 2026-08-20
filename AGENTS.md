@@ -75,6 +75,7 @@ papers/<id>/
 - 一次提交只做一件事，避免混合多个 unrelated changes。
 - 如果有多个 unrelated changes，`git commit --only -m "msg" -- <path1> <path2>` 使用只提交指定路径的改动
 - 项目级 Agent Skill：`.agents/skills/bump/SKILL.md` 定义版本升级流程；`.agents/skills/commit/SKILL.md` 定义按逻辑拆分当前改动并提交的流程。
+- 上游贡献工作流：`.agents/skills/rebase-feat-to-upstream-main/SKILL.md` 负责保持 `main`、`mac-dev`、`feat/*` 与 `mac-test/*` 分层同步；`.agents/skills/feature-pull-request/SKILL.md` 负责生成不含本地脚手架的上游 PR，并在 Chrome 中填写中文说明后停在提交按钮前。
 - `bump` Skill 执行完之后会，创建一个本地 commit。并打上对应的 tag
 - `commit` Skill 必须保留用户已有改动，按目的精确暂存，检查相关文档，并只创建本地 Conventional Commit。
 - 如果库当中有对应的 issue，则在提交信息中引用（如 `Fix #123`）；解决了该 issue 则关闭；部分解决则在 issue 区评论。
