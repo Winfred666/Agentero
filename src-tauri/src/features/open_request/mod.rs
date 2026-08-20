@@ -25,6 +25,7 @@ use url::Url;
 pub mod commands;
 
 pub const EVENT_VAULT_OPEN_REQUEST: &str = "vault:open-request";
+const OPEN_URL_SCHEMES: [&str; 2] = ["agentero", "agentero-test"];
 
 /// Written by headless CLI; consumed by the running desktop Host.
 const CLI_OPEN_REQUEST_FILE: &str = "cli-open-request.json";
@@ -63,11 +64,11 @@ pub struct VaultOpenPayload {
     pub path: String,
 }
 
-/// Parse `agentero://open?path=` (or `agentero:open?path=` variants).
+/// Parse an Agentero production or local-test `open?path=` URL.
 pub fn parse_open_url(raw: &str) -> Result<PathBuf, AppError> {
     let url = Url::parse(raw).map_err(|e| AppError::message(format!("invalid open URL: {e}")))?;
     let scheme = url.scheme();
-    if scheme != "agentero" {
+    if !OPEN_URL_SCHEMES.contains(&scheme) {
         return Err(AppError::message(format!(
             "unsupported URL scheme: {scheme}"
         )));
@@ -188,12 +189,12 @@ pub fn handle_deep_link_urls<R: Runtime>(app: &AppHandle<R>, urls: &[String]) {
     }
 }
 
-/// Scan CLI argv for `agentero://` URLs (second instance / Windows / Linux).
+/// Scan CLI argv for production or local-test URLs.
 #[cfg(feature = "desktop")]
 pub fn handle_argv_urls<R: Runtime>(app: &AppHandle<R>, argv: &[String]) {
     let urls: Vec<String> = argv
         .iter()
-        .filter(|a| a.starts_with("agentero://") || a.starts_with("agentero:"))
+        .filter(|a| a.starts_with("agentero:") || a.starts_with("agentero-test:"))
         .cloned()
         .collect();
     if !urls.is_empty() {
@@ -355,6 +356,12 @@ mod tests {
     #[test]
     fn parses_open_path_form() {
         let p = parse_open_url("agentero:open?path=%2Ftmp%2Fresearch").unwrap();
+        assert_eq!(p, PathBuf::from("/tmp/research"));
+    }
+
+    #[test]
+    fn parses_local_test_open_url() {
+        let p = parse_open_url("agentero-test://open?path=%2Ftmp%2Fresearch").unwrap();
         assert_eq!(p, PathBuf::from("/tmp/research"));
     }
 

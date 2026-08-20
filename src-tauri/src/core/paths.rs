@@ -14,6 +14,44 @@
 //! itself is not writable, so `~/.config` would fail with EPERM).
 
 use std::path::PathBuf;
+use std::sync::OnceLock;
+
+const PRODUCTION_APP_IDENTIFIER: &str = "com.poco-ai.agentero";
+const PRODUCTION_PROFILE_DIR: &str = "agentero";
+const TEST_PROFILE_DIR: &str = "agentero-test";
+
+static PROFILE_DIR: OnceLock<&'static str> = OnceLock::new();
+
+/// Select the persistent profile namespace before any app stores are loaded.
+/// Production and CLI builds keep the historical `agentero` directory; any
+/// non-production app identifier uses the isolated local-test profile.
+pub fn initialize_app_profile(identifier: &str) -> Result<(), String> {
+    let profile = profile_dir_for_identifier(identifier);
+    if let Some(current) = PROFILE_DIR.get() {
+        return if *current == profile {
+            Ok(())
+        } else {
+            Err(format!(
+                "app profile already initialized as {current}, cannot switch to {profile}"
+            ))
+        };
+    }
+    PROFILE_DIR
+        .set(profile)
+        .map_err(|_| "failed to initialize app profile".to_string())
+}
+
+fn profile_dir_for_identifier(identifier: &str) -> &'static str {
+    if identifier == PRODUCTION_APP_IDENTIFIER {
+        PRODUCTION_PROFILE_DIR
+    } else {
+        TEST_PROFILE_DIR
+    }
+}
+
+fn profile_dir() -> &'static str {
+    PROFILE_DIR.get().copied().unwrap_or(PRODUCTION_PROFILE_DIR)
+}
 
 /// Resolve XDG config home (`$XDG_CONFIG_HOME` or platform default).
 pub fn xdg_config_home() -> PathBuf {
@@ -45,9 +83,9 @@ pub fn xdg_cache_home() -> PathBuf {
     }
 }
 
-/// `$XDG_CONFIG_HOME/agentero` (created on demand by callers).
+/// `$XDG_CONFIG_HOME/<profile>` (created on demand by callers).
 pub fn agentero_config_dir() -> PathBuf {
-    xdg_config_home().join("agentero")
+    xdg_config_home().join(profile_dir())
 }
 
 /// Resolve XDG data home (`$XDG_DATA_HOME` or platform default).
@@ -65,14 +103,14 @@ pub fn xdg_data_home() -> PathBuf {
     }
 }
 
-/// `$XDG_CACHE_HOME/agentero` (created on demand by callers).
+/// `$XDG_CACHE_HOME/<profile>` (created on demand by callers).
 pub fn agentero_cache_dir() -> PathBuf {
-    xdg_cache_home().join("agentero")
+    xdg_cache_home().join(profile_dir())
 }
 
-/// `$XDG_DATA_HOME/agentero` (created on demand by callers).
+/// `$XDG_DATA_HOME/<profile>` (created on demand by callers).
 pub fn agentero_data_dir() -> PathBuf {
-    xdg_data_home().join("agentero")
+    xdg_data_home().join(profile_dir())
 }
 
 /// Device-local activity log: `…/agentero/usage.sqlite`.
@@ -114,6 +152,10 @@ pub fn legacy_config_dir() -> Option<PathBuf> {
 
 /// If `target` is missing but a legacy file exists, copy it once (best-effort).
 pub fn migrate_legacy_file(file_name: &str, target: &std::path::Path) {
+    // A local test app must never seed itself from the production profile.
+    if profile_dir() != PRODUCTION_PROFILE_DIR {
+        return;
+    }
     if target.exists() {
         return;
     }
@@ -167,6 +209,18 @@ fn home_dir() -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn production_and_test_identifiers_use_separate_profiles() {
+        assert_eq!(
+            profile_dir_for_identifier(PRODUCTION_APP_IDENTIFIER),
+            PRODUCTION_PROFILE_DIR
+        );
+        assert_eq!(
+            profile_dir_for_identifier("com.poco-ai.agentero.test"),
+            TEST_PROFILE_DIR
+        );
+    }
 
     #[test]
     fn config_dir_ends_with_agentero() {

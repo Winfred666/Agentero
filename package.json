@@ -10,6 +10,7 @@
 		"clean": "node scripts/clean-build-artifacts.mjs",
 		"preview": "vite preview",
 		"test": "vitest run",
+		"test:macos": "node test/scripts/run-macos-test.mjs",
 		"typecheck": "tsc --noEmit",
 		"ios:release:check": "node scripts/ios-release-check.mjs",
 		"demo:vault": "node test/scripts/create-demo-vault.mjs",

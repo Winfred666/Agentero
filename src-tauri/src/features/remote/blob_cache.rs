@@ -167,10 +167,7 @@ pub fn clear_all() -> Result<u64, AppError> {
 }
 
 fn remote_cache_base() -> PathBuf {
-    dirs::cache_dir()
-        .unwrap_or_else(std::env::temp_dir)
-        .join("agentero")
-        .join("remote")
+    crate::core::paths::agentero_cache_dir().join("remote")
 }
 
 fn all_blob_roots() -> Vec<PathBuf> {

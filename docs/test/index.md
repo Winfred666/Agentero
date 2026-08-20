@@ -54,6 +54,29 @@ Demo 完整包内容（`--empty` 除外）：
 
 每次生成会**重建** `catalog.sqlite`（避免重复跑脚本留下旧 schema）。依赖本机 `sqlite3` CLI。
 
+## macOS 本地隔离验收
+
+需要在安装包形态复测 patch 时，运行：
+
+```bash
+pnpm test:macos
+```
+
+该命令会先补齐干净工作树中未跟踪的 CLI sidecar / PDFium 构建输入，再依次执行 TypeScript/Rust lint、全量 Vitest、整个 Cargo workspace 测试，重建并校验 `tmp/agentero-test-vault`，然后只构建 `.app`、安装到 `~/Applications/Agentero Test.app`，最后启动该安装包，并通过测试 profile 内的 CLI 请求文件打开 Vault。测试同时校验安装包声明了 `agentero-test://`；实际验收使用 Host 已提供的请求文件通道，避免 Launch Services 在同 ID 的构建产物和已安装副本之间误选。两个带墙钟性能断言的 Vitest 文件各自在隔离进程中运行，其余文件使用默认并发；每项测试仍只执行一次，不放宽阈值。Cargo 基线显式设置 `AGENTERO_SKIP_NETWORK=1`，网络、SSH 和 MinIO 探针继续保留在现有的忽略/手动测试边界内，避免把外部服务波动误判为本地回归。任一步失败都会返回非零退出码。
+
+测试版与正式版的隔离边界：
+
+| 项 | 正式版 | 本地测试版 |
+|---|---|---|
+| App 名称 | `Agentero` | `Agentero Test` |
+| Bundle identifier | `com.poco-ai.agentero` | `com.poco-ai.agentero.test` |
+| Open URL scheme | `agentero://` | `agentero-test://` |
+| XDG profile | `agentero` | `agentero-test` |
+| 安装位置 | 通常 `/Applications/Agentero.app` | `~/Applications/Agentero Test.app` |
+| Updater endpoint | 正式 Release | 空（不会拉取正式版更新） |
+
+脚本在安装前后校验 bundle identifier、`agentero-test://` 声明、PDFium、内置 CLI 和正式版 `Info.plist` 哈希，并对复制后的测试包执行本地 ad-hoc 全包签名及严格校验。启动验收先等待 `app_ready`，再向 `agentero-test` profile 写入 CLI 请求文件，并从测试版日志确认接收。`tmp/agentero-test-vault` 是一次性测试数据，每次运行都会删除并重建；不要在其中保存需要保留的笔记。
+
 ## 前端测试
 
 运行 TypeScript 单元测试：

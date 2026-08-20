@@ -1,0 +1,25 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Agentero Test",
+  "identifier": "com.poco-ai.agentero.test",
+  "app": {
+    "windows": [
+      {
+        "title": "Agentero Test"
+      }
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": []
+    },
+    "deep-link": {
+      "desktop": {
+        "schemes": ["agentero-test"]
+      }
+    }
+  },
+  "bundle": {
+    "createUpdaterArtifacts": false
+  }
+}

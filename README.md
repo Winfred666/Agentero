@@ -119,6 +119,9 @@ pnpm install
 # 清除前端与 Rust 构建产物
 pnpm clean
 
+# macOS：完整测试 + 隔离测试 Vault + 安装并启动 Agentero Test
+pnpm test:macos
+
 # 桌面应用（推荐）
 pnpm tauri dev
 

@@ -11,6 +11,8 @@
 | macOS / Linux | `~/.local/share/agentero/usage.sqlite` |
 | Windows | `%APPDATA%\agentero\usage.sqlite`（`dirs::data_dir`） |
 
+本地 `Agentero Test` 包使用独立的 `$XDG_DATA_HOME/agentero-test/usage.sqlite`，不写正式版使用记录。
+
 代码：`src-tauri/src/features/usage/`。前端入口 `src/lib/activity/track.ts`（`track()` 缓冲批量上报）。
 
 ## 开关

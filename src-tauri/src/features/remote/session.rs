@@ -143,9 +143,7 @@ impl RemoteRegistry {
 
         let session_id = uuid::Uuid::new_v4().to_string();
         let cache_key = hex::encode(Sha256::digest(format!("{host}\0{remote_path}").as_bytes()));
-        let base_cache = dirs::cache_dir()
-            .unwrap_or_else(std::env::temp_dir)
-            .join("agentero")
+        let base_cache = crate::core::paths::agentero_cache_dir()
             .join("remote")
             .join(&cache_key);
         let work_root = base_cache.join("work").join(&session_id);

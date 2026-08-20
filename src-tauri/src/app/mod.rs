@@ -21,6 +21,10 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let context = tauri::generate_context!();
+    crate::core::paths::initialize_app_profile(&context.config().identifier)
+        .expect("failed to initialize app profile");
+
     // Both ring and aws-lc-rs backends exist in the dependency tree; rustls
     // panics at connect time unless a process-wide default is installed.
     let _ = rustls::crypto::ring::default_provider().install_default();
@@ -297,7 +301,7 @@ pub fn run() {
     }
 
     builder
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("error while building tauri application")
         .run(|app, event| {
             let _ = &app;
