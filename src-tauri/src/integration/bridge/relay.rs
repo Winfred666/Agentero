@@ -61,8 +61,55 @@ pub async fn next_frame(socket: &mut RelaySocket) -> Result<RelayFrame, AppError
                     .await
                     .map_err(|error| AppError::message(format!("Relay pong failed: {error}")))?;
             }
-            Message::Close(_) => return Ok(RelayFrame::Close),
+            Message::Close(Some(frame)) => {
+                return Err(AppError::message(format!(
+                    "Relay closed ({}): {}",
+                    frame.code, frame.reason
+                )));
+            }
+            Message::Close(None) => return Ok(RelayFrame::Close),
             Message::Pong(_) | Message::Frame(_) => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::net::TcpListener;
+    use tokio_tungstenite::accept_async;
+    use tokio_tungstenite::tungstenite::protocol::CloseFrame;
+
+    #[tokio::test]
+    async fn preserves_close_code_and_reason_from_websocket() {
+        for (code, reason) in [
+            (1008_u16, "Invalid handshake key"),
+            (1013, "Data route unavailable"),
+        ] {
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let url = Url::parse(&format!("ws://{}", listener.local_addr().unwrap())).unwrap();
+            let server = tokio::spawn(async move {
+                let (stream, _) = listener.accept().await.unwrap();
+                let mut socket = accept_async(stream).await.unwrap();
+                socket
+                    .close(Some(CloseFrame {
+                        code: code.into(),
+                        reason: reason.into(),
+                    }))
+                    .await
+                    .unwrap();
+            });
+            let mut socket = connect_relay(url).await.unwrap();
+            let error =
+                tokio::time::timeout(std::time::Duration::from_secs(5), next_frame(&mut socket))
+                    .await
+                    .unwrap()
+                    .unwrap_err();
+            assert_eq!(
+                error.to_string(),
+                format!("Relay closed ({code}): {reason}")
+            );
+            server.await.unwrap();
         }
     }
 }
