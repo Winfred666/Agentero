@@ -1201,13 +1201,7 @@ fn vault_relative_path(vault_root: &Path, value: &str, writing: bool) -> Result<
 }
 
 fn decode_crypto_box_public_key(value: &str) -> Result<PublicKey, AppError> {
-    let bytes = URL_SAFE_NO_PAD
-        .decode(value)
-        .map_err(|_| AppError::message("E2EE public key is not valid base64url"))?;
-    let bytes: [u8; 32] = bytes
-        .try_into()
-        .map_err(|_| AppError::message("E2EE public key must contain 32 bytes"))?;
-    Ok(PublicKey::from(bytes))
+    super::decode_handshake_key(value)
 }
 
 fn relay_endpoint_for_offer(endpoint: &RelayEndpoint) -> String {

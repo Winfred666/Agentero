@@ -267,7 +267,7 @@ async fn run_client_session(
     send_text(
         socket,
         serde_json::to_string(&E2eeHandshake::E2eeHello {
-            key: URL_SAFE_NO_PAD.encode(ephemeral.public_key().as_bytes()),
+            key: super::encode_handshake_key(&ephemeral.public_key()),
         })?,
     )
     .await?;

@@ -15,7 +15,7 @@ mod protocol;
 mod relay;
 
 pub use client::{BridgeClientController, BridgeClientStatus};
-pub use crypto::SessionCipher;
+pub use crypto::{decode_handshake_key, encode_handshake_key, SessionCipher};
 pub use host::{BridgeController, BridgeStatus, PairingRequest};
 pub use identity::{
     validate_device_public_key, verify_device_challenge, BridgeClientIdentity,
