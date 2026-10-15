@@ -83,25 +83,22 @@ def candidate(source, output, quality):
 def optimize(source, destination):
     source, destination = Path(source), Path(destination)
     original = source.stat().st_size
-    trials = []
     with tempfile.TemporaryDirectory(dir=destination.parent) as folder:
         best, size = source, original
         for quality in (None, 90, 85):
             output = Path(folder) / f'{quality}.pdf'
             try:
                 candidate(source, output, quality)
-                accepted = output.stat().st_size < size and validate(source, output)
-                trials.append({'quality': quality, 'bytes': output.stat().st_size, 'accepted': accepted})
-                if accepted:
+                if output.stat().st_size < size and validate(source, output):
                     best, size = output, output.stat().st_size
-            except Exception as error:
-                trials.append({'quality': quality, 'accepted': False, 'reason': str(error)})
+            except Exception:
+                continue
         if best != source or destination != source:
             staging = Path(folder) / 'selected.pdf'
             shutil.copy2(best, staging)
             os.replace(staging, destination)
     return {'original_bytes': original, 'final_bytes': size, 'saved_bytes': original-size,
-            'candidates': trials, 'path': str(destination)}
+            'path': str(destination)}
 
 
 if __name__ == '__main__':

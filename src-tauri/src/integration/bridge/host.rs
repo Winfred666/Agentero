@@ -22,7 +22,6 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use chrono::Utc;
 use crypto_box::aead::rand_core::RngCore;
-use crypto_box::PublicKey;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::Digest;
@@ -467,7 +466,7 @@ async fn run_data_channel(
     let Ok(E2eeHandshake::E2eeHello { key }) = serde_json::from_str(&payload) else {
         return;
     };
-    let Ok(client_public) = decode_crypto_box_public_key(&key) else {
+    let Ok(client_public) = super::crypto::decode_handshake_key(&key) else {
         return;
     };
     let Ok(host_secret) = shared.identity.secret_key() else {
@@ -1198,10 +1197,6 @@ fn vault_relative_path(vault_root: &Path, value: &str, writing: bool) -> Result<
         return Err(AppError::message("Bridge path escapes the Vault"));
     }
     Ok(resolved)
-}
-
-fn decode_crypto_box_public_key(value: &str) -> Result<PublicKey, AppError> {
-    super::decode_handshake_key(value)
 }
 
 fn relay_endpoint_for_offer(endpoint: &RelayEndpoint) -> String {

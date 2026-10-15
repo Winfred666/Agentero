@@ -1,28 +1,15 @@
 # Cross-vault CLI harness
 
-No MCP or desktop required. Reuses installed Agentero CLI for domain operations; adds file/notes, PDF text, layout-page and Markdown search helpers. No Rust/backend changes.
+Requires Python 3.9+, Agentero CLI 0.11.7+ and `pip install pymupdf pikepdf numpy Pillow`. Keep `scripts/agentero-harness.py` and `scripts/pdf_optimizer.py` together.
 
 ```sh
-python3 -m venv ~/.local/share/agentero-harness/venv
-~/.local/share/agentero-harness/venv/bin/pip install pymupdf pikepdf numpy Pillow
-cp scripts/agentero-harness.py scripts/pdf_optimizer.py ~/.local/share/agentero-harness/
-```
-
-Entry: `~/.local/share/agentero-harness/venv/bin/python ~/.local/share/agentero-harness/agentero-harness.py --vault PATH OP ARGS`.
-
-```sh
-# Native commands use ordinary CLI arguments.
 python scripts/agentero-harness.py --vault /path/to/vault native paper list
-# Helpers take one JSON object.
-python scripts/agentero-harness.py --vault /path/to/vault paper-text '{"ref":"papers/1706.03762","pages":[1]}'
-python scripts/agentero-harness.py --vault /path/to/vault notes-write '{"ref":"papers/1706.03762","mode":"append","content":"Finding"}'
-python scripts/agentero-harness.py --vault /path/to/vault import-id '{"text":"1706.03762"}'
+python scripts/agentero-harness.py --vault /path/to/vault paper-text '{"ref":"papers/demo","pages":[1]}'
+python scripts/agentero-harness.py --vault /path/to/vault notes-write '{"ref":"papers/demo","mode":"append","content":"Finding"}'
 ```
 
-Helpers: `file-list/read/write` (`path`, optional `limit` or `content`/`mode`); `notes-get/write` (`ref`, optional `content`/`mode`); `paper-text` (`ref`, optional `pages`/`maxChars`); `page-read` (`ref`, `page`); `search` (`query`, optional `limit`, `year`, `publication`, `doi`, `isRead`); `import-pdf` (`files`, optional `parent`/`no_recognize`); `import-id` (`text`, optional `parent`); `download` (`ref`). Every invocation selects its vault explicitly. Outputs `{ok,data}` or `{ok:false,error}`; failures exit 1. `--cli PATH` selects the installed binary.
+Helpers take one JSON object: `file-list/read/write` (`path`, optional `limit` or `content`/`mode`); `notes-get/write` (`ref`, optional `content`/`mode`); `paper-text` (`ref`, optional `pages`/`maxChars`); `page-read` (`ref`, `page`); `search` (`query`, optional `limit`, `year`, `publication`, `doi`, `isRead`); `import-pdf` (`files`, optional `parent`/`no_recognize`); `import-id` (`text`, optional `parent`); `download` (`ref`). Each call selects a vault; `--cli PATH` overrides the executable. Output is `{ok,data}` or `{ok:false,error}` (exit 1).
 
-Imports/downloads optimize PDFs before harness return, with recoverable originals outside the vault in `~/.local/state/agentero-harness`. Local PDF inputs are unchanged and optimized before copying. Downloaded PDFs enter the vault before optimization; no claim of reduced publisher traffic. Native passthrough blocks ordinary raw imports/downloads. Callers can still bypass the harness by invoking the CLI directly.
+Imports/downloads use the existing PDF optimizer, retaining the smallest verified candidate and recoverable originals outside the vault (`--state`, default `~/.local/state/agentero-harness`). Local inputs stay unchanged; downloads are optimized after native import and before return. Raw native imports/downloads are blocked by the harness.
 
-Scope: helper functionality, not identical MCP protocol/schema or PDFium output. PDF text uses PyMuPDF; `page-read` requires existing schemaVersion 3 layout analysis and does not generate it. Search uses deterministic path order, not MCP's ranking/page mapping. Notes preserve existing frontmatter for body replacement and append. Existing CLI operations remain unchanged. MCP resources have no protocol analogue; use CLI catalog/help and project context.
-
-Verification: `python scripts/test-agentero-harness.py` in the dependency environment exercises all eight helpers, compressed local import, note preservation, two disposable vaults and path containment. Test CLI path currently targets the Pop!_OS runtime. Use installed CLI 0.11.7+ (local PDF import required).
+Limits/follow-up: no desktop or MCP required, but no MCP schema/resource parity. PDF text uses PyMuPDF; page reading needs existing v3 layout analysis; search uses path order rather than MCP ranking/page mapping. ID/download paths still need a live integration run. Run `python scripts/test-agentero-harness.py` with dependencies installed and `agentero` on PATH (or `AGENTERO_CLI`).

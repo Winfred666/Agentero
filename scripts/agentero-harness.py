@@ -100,6 +100,9 @@ def compress(config, source, destination):
 
 def run(config, op, args):
     vault = config.vault
+    mode = args.get('mode', 'replace')
+    if op in ('file-write', 'notes-write') and mode not in ('replace', 'append'):
+        raise ValueError('mode must be replace or append')
     if op in ('file-list', 'file-read', 'file-write'):
         relative = args.get('path', '')
         path = path_in(vault, relative)
@@ -121,9 +124,6 @@ def run(config, op, args):
             raise ValueError('managed file; use dedicated operation')
         if path.suffix.lower().lstrip('.') in BINARY:
             raise ValueError('binary file')
-        mode = args.get('mode', 'replace')
-        if mode not in ('replace', 'append'):
-            raise ValueError('mode must be replace or append')
         content = args['content']
         if mode == 'append' and path.exists():
             content = read(path) + content
@@ -137,12 +137,9 @@ def run(config, op, args):
             if op == 'notes-get':
                 return {'path': str(path.relative_to(vault)), 'content': existing}
             content = args['content']
-            mode = args.get('mode', 'replace')
-            if mode not in ('replace', 'append'):
-                raise ValueError('mode must be replace or append')
-            front, body = frontmatter(existing)
+            front, _ = frontmatter(existing)
             if mode == 'append' and existing.strip():
-                content = front.rstrip() + '\n\n' + body.strip() + '\n\n' + content.rstrip() + '\n'
+                content = existing.rstrip() + '\n\n' + content.rstrip() + '\n'
             elif not frontmatter(content)[0]:
                 # JSON strings are valid YAML scalar aliases, including punctuation in IDs.
                 front = front or '---\naliases: [' + json.dumps(record['id']) + ']\n---\n'
