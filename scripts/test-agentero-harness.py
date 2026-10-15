@@ -45,9 +45,26 @@ with tempfile.TemporaryDirectory() as directory:
         shutil.copyfile(SCRIPT.parent.parent / 'test/fixtures/mcp-search/papers/alpha/source/layout.json', folder / 'layout.json')
         assert call('page-read', ref=reference, page=2)['textRegions'][0]['id'] == 'page2-body'
         assert call('search', query='cross research')['hits']
+        assert call('search', query='cross research', path='notes', maxDepth=0)['hits']
+        assert not call('search', query='cross research', maxDepth=0)['hits']
+        call('file-write', path=reference + '/scope.md', content='scope regression')
+        rows = harness['cli'](CLI, vault, 'paper', 'list', '--full')
+        record = next(row for row in rows if row['path'] == reference)
+        for key, value in [('isRead', record['is_read']), ('year', record.get('year')),
+                           ('publication', record.get('publication') or ''), ('doi', record.get('doi') or '')]:
+            hits = call('search', query='scope regression', path=reference, maxDepth=0, **{key: value})['hits']
+            assert len(hits) == 1 and hits[0]['paperPath'] == reference
+        assert not call('search', query='scope regression', path=reference, isRead=not record['is_read'])['hits']
+        call('file-write', path='notes/second.md', content='cross research')
+        assert call('search', query='cross research', path='notes', limit=1)['truncated']
     command = [sys.executable, str(SCRIPT), '--vault', str(vault)]
     result = subprocess.run([*command, 'file-read', '{"path":"notes/guide.md"}'], capture_output=True, text=True, check=True)
     assert json.loads(result.stdout)['data']['content'].startswith('vault 1')
+    for args in [('paper', 'list', '--help'), ('paper', 'get', '-h'), ('paper', 'help', 'list'), ('--version',)]:
+        result = subprocess.run([*command, 'native', *args], capture_output=True, text=True, check=True)
+        assert json.loads(result.stdout)['data']['text'].strip()
+    result = subprocess.run([*command, 'native', 'paper', 'not-a-command'], capture_output=True, text=True)
+    assert result.returncode == 1 and 'unrecognized subcommand' in json.loads(result.stdout)['error']['message']
     rejected = subprocess.run([*command, 'file-write', '{"path":"../escape.md","content":"no"}'], capture_output=True)
     assert rejected.returncode == 1 and not (root / 'escape.md').exists()
     print('PASS: eight helpers, compressed local imports, two vaults, frontmatter, CLI entry, containment')

@@ -16,7 +16,14 @@ BINARY = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'zip', 'gz', 'sqlite', 'db', 'exe'
 def cli(binary, vault, *args):
     result = subprocess.run([binary, '--vault', str(vault), '--json', *args],
                             capture_output=True, text=True, timeout=300)
-    payload = json.loads(result.stdout)
+    if result.returncode and not result.stdout.strip():
+        raise ValueError(result.stderr.strip() or 'native command failed')
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        if not result.returncode and any(arg in ('--help', '-h', '--version', '-V', 'help') for arg in args):
+            return {'text': result.stdout}
+        raise
     if result.returncode or not payload.get('ok'):
         raise ValueError(payload.get('error', {}).get('message', result.stderr))
     return payload['data']
@@ -183,11 +190,20 @@ def run(config, op, args):
         terms = args['query'].lower().split()
         if not terms:
             raise ValueError('query must not be empty')
+        scope = path_in(vault, args.get('path', ''))
+        if not scope.is_dir():
+            raise ValueError('search path must be a directory')
+        max_depth = args.get('maxDepth')
+        if max_depth is not None and (type(max_depth) is not int or max_depth < 0):
+            raise ValueError('maxDepth must be a nonnegative integer')
         records = cli(config.cli, vault, 'paper', 'list', '--full')
         filters = {k: args[k] for k in ('year', 'publication', 'doi', 'isRead') if k in args}
+        limit = max(1, min(int(args.get('limit', 60)), 200))
         hits = []
-        for root, dirs, files in os.walk(vault, followlinks=False):
+        for root, dirs, files in os.walk(scope, followlinks=False):
             dirs[:] = sorted(d for d in dirs if not d.startswith('.') and d not in ('target', 'node_modules'))
+            if max_depth is not None and len(Path(root).relative_to(scope).parts) >= max_depth:
+                dirs.clear()
             for name in sorted(files):
                 if not name.lower().endswith('.md'):
                     continue
@@ -212,7 +228,8 @@ def run(config, op, args):
                 line = next((i for i, s in enumerate(lines, 1) if any(t in s.lower() for t in terms)), 1)
                 hits.append({'path': relative, 'paperPath': record['path'] if record else None,
                              'line': line, 'snippet': lines[line-1][:200] if lines else ''})
-        limit = max(1, min(int(args.get('limit', 60)), 200))
+                if len(hits) > limit:
+                    return {'hits': hits[:limit], 'truncated': True}
         return {'hits': hits[:limit], 'truncated': len(hits) > limit}
     if op == 'import-pdf':
         with tempfile.TemporaryDirectory() as tmp:
