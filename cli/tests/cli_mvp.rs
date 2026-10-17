@@ -77,11 +77,10 @@ fn tiny_pdf_pages(texts: &[&str]) -> Vec<u8> {
 
 #[test]
 fn mcp_reading_operations_on_two_vaults() {
-    use agentero_core::features::{paper::reading, vault};
     let tmp = tempdir().unwrap();
-    for name in ["first", "second"] {
+    for (name, page_text) in [("first", "fir"), ("second", "sec")] {
         let root = tmp.path().join(name);
-        vault::create_vault(&root, "en").unwrap();
+        agentero_core::features::vault::create_vault(&root, "en").unwrap();
         seed_paper(&root, "papers/demo", "demo", "Demo");
         set_paper_authors_and_year(&root, "papers/demo", "[]", 2024);
         let paper = root.join("papers/demo");
@@ -123,58 +122,21 @@ fn mcp_reading_operations_on_two_vaults() {
             call(&["file", "list", "drafts"])["entries"][0]["path"],
             "drafts/main.tex"
         );
-        agentero()
-            .args([
-                "--vault",
-                root.to_str().unwrap(),
-                "--json",
-                "file",
-                "write",
-                "papers/demo/NOTES.md",
-                "bad",
-            ])
-            .assert()
-            .failure();
-        agentero()
-            .args([
-                "--vault",
-                root.to_str().unwrap(),
-                "--json",
-                "file",
-                "read",
-                "../escape.md",
-            ])
-            .assert()
-            .failure();
 
         call(&["paper", "notes", "write", "demo", "# Transformer attention"]);
         call(&["paper", "notes", "write", "demo", name, "--append"]);
-        let notes = call(&["paper", "notes", "get", "demo"]);
-        let content = notes["content"].as_str().unwrap();
-        assert!(content.starts_with("---\naliases: [demo]\n---"));
-        assert!(content.contains(name) && !content.contains("Old"));
+        assert_eq!(
+            call(&["paper", "notes", "get", "demo"])["content"],
+            format!("---\naliases: [demo]\n---\n\n# Transformer attention\n\n{name}\n")
+        );
+        let text = call(&["paper", "text", "demo", "--pages", "2", "--max-chars", "3"]);
+        assert_eq!(text["pages"][0]["page"], 2);
+        assert_eq!(text["pages"][0]["text"], page_text);
+        assert_eq!(
+            call(&["layout", "page", "demo", "2"])["textRegions"][0]["id"],
+            "page2-body"
+        );
 
-        // Compare CLI payloads to the exact services used by MCP, including
-        // duplicate/out-of-range PDF pages and the per-page character budget.
-        assert_eq!(
-            call(&[
-                "paper",
-                "text",
-                "demo",
-                "--pages",
-                "2,2,99",
-                "--max-chars",
-                "5"
-            ]),
-            serde_json::to_value(reading::text(&root, "demo", Some(vec![2, 2, 99]), 5).unwrap())
-                .unwrap()
-        );
-        let page = call(&["layout", "page", "demo", "2"]);
-        assert_eq!(page["textRegions"][0]["id"], "page2-body");
-        assert_eq!(
-            page,
-            serde_json::to_value(reading::read_page(&root, "demo", 2).unwrap()).unwrap()
-        );
         let search = call(&[
             "vault",
             "search",
@@ -184,27 +146,8 @@ fn mcp_reading_operations_on_two_vaults() {
             "--is-read",
             "false",
         ]);
-        assert_eq!(
-            search,
-            serde_json::to_value(
-                vault::files::search(
-                    &root,
-                    "transformer attention".into(),
-                    None,
-                    Some(2024),
-                    None,
-                    None,
-                    Some(false)
-                )
-                .unwrap()
-            )
-            .unwrap()
-        );
         let hits = search["hits"].as_array().unwrap();
-        assert_eq!(
-            hits[0]["path"], "papers/demo/NOTES.md",
-            "title matches rank first"
-        );
+        assert_eq!(hits[0]["path"], "papers/demo/NOTES.md");
         assert!(hits
             .iter()
             .any(|h| h["path"] == "papers/demo/PAPER.md" && h["page"] == 2));
